@@ -8,11 +8,6 @@ def extract_email(telecom_list):
     return None  # Returns None if no email is found
 
 
-# Assuming `data` is your JSON structure loaded from the sample provided or a similar source
-# If you need to load from a file: 
-
-with open('data\sample1.json', 'r') as file:
-     data = json.load(file)
 
 def extract_entities(data):
     patient = {}
@@ -62,7 +57,12 @@ def extract_entities(data):
             practice = {
                 'name': item['name'],
                 'identifier': next((identifier['value'] for identifier in item['identifier'] if identifier.get('type', {}).get('coding', [{}])[0].get('code') == 'NOI'), None),
-                'address': ', '.join(item['address'][0]['line']) + ', ' + item['address'][0]['city'] + ', ' + item['address'][0]['state'] + ' ' + item['address'][0]['postalCode'] + ', ' + item['address'][0]['country']
+                'address': ', '.join(item['address'][0]['line']) + ', ' + item['address'][0]['city'] + ', ' + item['address'][0]['state'] + ' ' + item['address'][0]['postalCode'] + ', ' + item['address'][0]['country'],
+                # get the practice's phone number
+                'email': extract_email(item.get('telecom', [])),
+                'phone': item['telecom'][0]['value'],  
+                'edi_system': next((identifier['system'] for identifier in item['identifier'] if identifier.get('type', {}).get('coding', [{}])[0].get('code') == 'RI'), None),
+                'edi_id' : next((identifier['value'] for identifier in item['identifier'] if identifier.get('type', {}).get('coding', [{}])[0].get('code') == 'RI'), None),
             }
         # Assuming Referrer is a PractitionerRole, adjust as needed
         elif item['resourceType'] == 'PractitionerRole':
@@ -80,11 +80,25 @@ def extract_entities(data):
         'referrer': referrer
     }
 
-# Extract entities
-entities = extract_entities(data)
 
-# Example of printing the structured data
-print("Patient:", entities['patient'])
-print("Practitioner:", entities['practitioner'])
-print("Practice:", entities['practice'])
-print("Referrer:", entities['referrer'])
+def main():
+    try:
+        with open(r'data\sample1.json', 'r') as file:
+            data = json.load(file)
+    except FileNotFoundError:
+        print("File not found. Please check the file path.")
+        return
+    except json.JSONDecodeError:
+        print("Failed to decode JSON. Please check the file content.")
+        return
+
+    entities = extract_entities(data)
+
+    # Example of printing the structured data
+    print("Patient:", entities.get('patient'))
+    print("Practitioner:", entities.get('practitioner'))
+    print("Practice:", entities.get('practice'))
+    print("Referrer:", entities.get('referrer'))
+
+if __name__ == "__main__":
+    main()
