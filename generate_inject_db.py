@@ -3,6 +3,9 @@ import random
 from psycopg2 import extras  # This is the missing import
 import psycopg2
 import os
+from lib.common_health import generate_australian_gp_name, get_target_organisation_name
+from lib.common_health import generate_healthcare_concern
+from lib.common_health import generate_comorbidity
 
 from dotenv import load_dotenv
 
@@ -18,131 +21,20 @@ POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
 # Set Faker to use the Australian locale for more localized data
 fake = Faker('en_AU')
 
-def generate_healthcare_concern():
-    # Predefined list of healthcare concern templates
-    healthcare_concerns = [
-        "Patient has a broken shoulder.",
-        "Complaints of chronic back pain.",
-        "Suspected case of viral infection.",
-        "Experiencing severe migraines.",
-        "Requires evaluation for possible diabetes.",
-        "Symptoms suggest acute bronchitis.",
-        "High blood pressure needing management.",
-        "Potential allergic reaction identified.",
-        "Injury from a recent fall.",
-        "Consultation for anxiety and depression.",
-        "Routine check-up for heart disease risk.",
-        "Follow-up on previous surgical procedure.",
-        "Early signs of osteoporosis observed.",
-        "Assessment for autoimmune diseases.",
-        "Examination for skin rash and eczema.",
-        "Concerns regarding childhood vaccinations.",
-        "Dental pain and possible cavity.",
-        "Screening for breast cancer.",
-        "Evaluating nutritional deficiencies.",
-        "Symptoms of sleep disorders.",
-        "Review of medication side effects.",
-        "Consultation requested for weight management.",
-        "Testing for thyroid function abnormalities.",
-        "Consideration for vision and eye health.",
-        "Hearing loss and tinnitus evaluation.",
-        "Chronic fatigue and possible fibromyalgia.",
-        "Pregnancy check-up and prenatal care.",
-        "Suspected gastrointestinal issues.",
-        "Investigation into frequent headaches.",
-        "Concerns about aging and memory loss.",
-        "Fitness assessment for sports participation.",
-        "Risk assessment for genetic conditions.",
-        "Evaluation for chronic kidney disease.",
-        "Symptoms of urinary tract infection.",
-        "Monitoring for liver function abnormalities.",
-        "Assessment for reproductive health issues.",
-        "Concerns about vitamin D deficiency.",
-        "Possible concussion from recent head injury.",
-        "Screening for prostate cancer.",
-        "Consultation for sleep apnea.",
-        "Evaluation of joint pain for arthritis.",
-        "Treatment options for acid reflux and GERD.",
-        "Investigation of unexplained weight loss.",
-        "Check-up for asthma control and management.",
-        "Preventive vaccination for seasonal flu.",
-        "Assessment for attention deficit hyperactivity disorder.",
-        "Counseling for stress management and burnout.",
-        "Diagnostic testing for Lyme disease.",
-        "Management of menopause symptoms.",
-        "Follow-up on abnormal blood test results.",
-        "Therapy options for chronic sinusitis.",
-        "Pre-operative evaluation for elective surgery.",
-        "",  # Represents a potential for no specific concern listed
-    ]
-
-    # Randomly select from the predefined list
-    return random.choice(healthcare_concerns)
-
-
-
-def generate_australian_gp_name(state):
-    # Predefined GP practice names to simulate real names. You can add more or adjust as needed.
-    predefined_names = [
-        "Harbour City Medical Centre",
-        "Springfield General Practice",
-        "Green Valley Family Clinic",
-        "Oceanview Medical Practice",
-        "Mountain Ridge Health Centre",
-        "Riverbank Family Health",
-        "Sunnybank Community Clinic",
-        "Bayview Medical Associates",
-        "Outback Health Services",
-        "Coastline Primary Care",
-        "Blue Mountains Medical Group",
-        "Gold Coast Health Partners",
-        "Urban Wellness Clinic",
-        "Coral Sea Healthcare",
-        "Desert Springs Medical Practice",
-        "Rainforest Medical Network",
-        "Sunshine State Health Centre",
-        "Great Barrier Reef Medical Clinic",
-        "Red Centre Family Practice",
-        "Tropical North Health Services",
-        "Southern Cross Medical Care",
-        "East Coast Family Medicine",
-        "West End Medical Practice",
-        "Northern Rivers Healthcare",
-        "Surfside Community Health"
-    ]
-    # Append a state abbreviation to make it more specific
-    return random.choice(predefined_names) + f" ({state})"
-
-def get_target_organisation_name():
-    specialist_clinics = [
-        "Sydney Cardiology Group",
-        "Melbourne Neurology Centre",
-        "Brisbane Orthopedics Clinic",
-        "Perth Paediatrics Practice",
-        "Adelaide Oncology Associates",
-        "Canberra Radiology Network",
-        "Gold Coast Emergency Specialists",
-        "Hobart Endocrinology & Diabetes Service",
-        "Darwin Gastroenterology Group",
-        "Sunshine Coast Rheumatology Clinic",
-        "Geelong Pulmonary and Sleep Medicine",
-        "Cairns Allergy Clinic",
-        "Alice Springs Pain Management Center",
-        "Townsville Dermatology Clinic",
-        "Launceston Urology Practice",
-        "Bendigo Women's Health Institute",
-        "Toowoomba Cardiac Centre",
-        "Mackay Mental Health Services",
-        "Rockhampton Eye Clinic",
-        "Wollongong ENT Specialists"
-    ]
-    return random.choice(specialist_clinics)
 
 
 def generate_ereferral_data():
     # Randomly choose an Australian state for consistency in GP name and patient address
     states = ['NSW', 'VIC', 'QLD']
     chosen_state = random.choice(states)
+    referral_date = fake.date_time_this_decade(before_now=True, after_now=False, tzinfo=None)
+
+    referral_status = random.choice([0, 1, 2])  # Randomly selects a status
+    if referral_status == 0:
+        referral_accepted_rejected_date = None
+    else:
+        referral_accepted_rejected_date = fake.date_time_between(start_date=referral_date, end_date='now')
+
     # Predefined list of healthcare facilities, including an empty string for blank cases
     healthcare_facilities = [
         "Cardiology",
@@ -158,7 +50,7 @@ def generate_ereferral_data():
 
     return {
         'e_referral_id': fake.uuid4(),
-        'referral_datetime': fake.date_time_this_decade(before_now=True, after_now=False, tzinfo=None),
+        'referral_datetime': referral_date,
         'clinician_name': fake.name(),
         'clinician_contact_details': fake.phone_number(),
         'healthcare_provider_number': fake.bothify(text='????#####', letters='ABCDEFGHIJKLMNOPQRSTUVWXYZ'),
@@ -175,17 +67,19 @@ def generate_ereferral_data():
         'target_faculty': random.choice(healthcare_facilities),  # Select from the list, including potentially blank
         'referral_reason': generate_healthcare_concern(),
         'medication_history': fake.text(max_nb_chars=200),
-        'comorbidity': fake.text(max_nb_chars=100),
+        'comorbidity': generate_comorbidity(),
         'patient_dob': fake.date_of_birth(minimum_age=5, maximum_age=115),
         'medicare_number': fake.bothify(text='#### #### ##'),  # Adjusted to fit the Medicare format
         'medicare_expiry': fake.date_this_decade(before_today=True, after_today=False),
-        'atsi_code': random.randint(1, 3),
+        'atsi_code': random.choice([1, 2, 3, 4, 9]),
         'primary_language_code': random.randint(1, 100),
         'additional_info': fake.text(max_nb_chars=200),
         'patient_full_address': fake.address(),
         'patient_email': fake.email(),
         'patient_postcode': fake.postcode(),
-        'patient_state': chosen_state
+        'patient_state': chosen_state,
+        'referral_status': referral_status,
+        'referral_accepted_rejected_date': referral_accepted_rejected_date
     }
 
 
@@ -212,8 +106,8 @@ def insert_ereferral_record(record):
         patient_alternate_contact_details, target_organisation_name, target_faculty,
         referral_reason, medication_history, comorbidity, patient_dob,
         medicare_number, medicare_expiry, atsi_code, primary_language_code, additional_info,
-        patient_full_address, patient_email, patient_postcode, patient_state
-    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+        patient_full_address, patient_email, patient_postcode, patient_state, referral_status, referral_accepted_rejected_date
+    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
     """
     values = (
         record['e_referral_id'], record['referral_datetime'], record['clinician_name'], record['clinician_contact_details'],
@@ -223,7 +117,8 @@ def insert_ereferral_record(record):
         record['patient_alternate_contact_details'], record['target_organisation_name'], record['target_faculty'],
         record['referral_reason'], record['medication_history'], record['comorbidity'], record['patient_dob'],
         record['medicare_number'], record['medicare_expiry'], record['atsi_code'], record['primary_language_code'], record['additional_info'],
-        record['patient_full_address'], record['patient_email'], record['patient_postcode'], record['patient_state']
+        record['patient_full_address'], record['patient_email'], record['patient_postcode'], record['patient_state'],
+        record['referral_status'], record['referral_accepted_rejected_date']
     )
 
     connection = None
@@ -253,6 +148,6 @@ def insert_ereferral_record(record):
 
 
 # Example of generating a record and inserting it into the database
-for _ in range(100):
+for _ in range(5000):
     ereferral_record = generate_ereferral_data()
     insert_ereferral_record(ereferral_record)
