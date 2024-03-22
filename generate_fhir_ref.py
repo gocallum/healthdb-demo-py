@@ -2,6 +2,8 @@ import random
 from faker import Faker
 fake = Faker()
 from lib.common_health import generate_australian_gp_name
+import json
+
 
 def select_ASTI():
     origins = [
@@ -141,7 +143,7 @@ def generate_referral():
                     }
                 ],
                 "active": True,
-                "name": generate_australian_gp_name,
+                "name": generate_australian_gp_name(),
                 "telecom": [
                     {
                         "system": "phone",
@@ -404,4 +406,4 @@ def generate_referral():
 
 # Generate a referral
 referral = generate_referral()
-print(referral)
+print(json.dumps(referral, indent=4))
