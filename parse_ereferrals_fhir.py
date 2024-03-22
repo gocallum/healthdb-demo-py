@@ -1,55 +1,58 @@
 import json
-import csv
 
+# Assuming `data` is your JSON structure loaded from the sample provided or a similar source
+# If you need to load from a file: 
 
-def extract_patient_info(data):
-    # Initialize variables to hold the extracted information
-    patient_info = {}
-    
-    # Extract information from the payload
+with open('data\sample1.json', 'r') as file:
+     data = json.load(file)
+
+def extract_entities(data):
+    patient = {}
+    practitioner = {}
+    practice = {}
+    referrer = {}
+
     for item in data['contained']:
         if item['resourceType'] == 'Patient':
-            patient_info['Patient ID'] = item['id']
-            aboriginal_status = next((ext for ext in item['extension'] if ext['url'].endswith('indigenous-status')), None)
-            if aboriginal_status:
-                patient_info['Aboriginal Status Code'] = aboriginal_status['valueCoding']['code']
-                patient_info['Aboriginal Status Description'] = aboriginal_status['valueCoding']['display']
-            # Assuming the first identifier is Medicare Number for simplicity
-            patient_info['Medicare Number'] = item['identifier'][0]['value']
-            # Extract name information
-            name_info = item['name'][0]
-            patient_info['Given Name'] = " ".join(name_info['given'])
-            patient_info['Family Name'] = name_info['family']
-            # Assuming the first telecom info contains desired contact information
-            patient_info['Contact Information'] = {telecom['system']: telecom['value'] for telecom in item['telecom']}
-            patient_info['Gender'] = item['gender']
-            patient_info['Birth Date'] = item['birthDate']
-            # Assuming the first address is the current address
-            address_info = item['address'][0]
-            patient_info['Address Line'] = " ".join(address_info['line'])
-            patient_info['City'] = address_info['city']
-            patient_info['State'] = address_info['state']
-            patient_info['Postal Code'] = address_info['postalCode']
-            patient_info['Country'] = address_info['country']
-            break
-    
-    return patient_info
+            patient = {
+                'first_name': ' '.join(item['name'][0]['given']),
+                'last_name': item['name'][0]['family'],
+                'medicare_number': next((identifier['value'] for identifier in item['identifier'] if identifier.get('type', {}).get('coding', [{}])[0].get('code') == 'MC'), None),
+                'gender': item['gender']
+            }
+        elif item['resourceType'] == 'Practitioner':
+            practitioner = {
+                'first_name': ' '.join(item['name'][0]['given']),
+                'last_name': item['name'][0]['family'],
+                'npi': next((identifier['value'] for identifier in item['identifier'] if identifier.get('type', {}).get('coding', [{}])[0].get('code') == 'NPI'), None)
+            }
+        elif item['resourceType'] == 'Organization':
+            practice = {
+                'name': item['name'],
+                'identifier': next((identifier['value'] for identifier in item['identifier'] if identifier.get('type', {}).get('coding', [{}])[0].get('code') == 'NOI'), None),
+                'address': ', '.join(item['address'][0]['line']) + ', ' + item['address'][0]['city'] + ', ' + item['address'][0]['state'] + ' ' + item['address'][0]['postalCode'] + ', ' + item['address'][0]['country']
+            }
+        # Assuming Referrer is a PractitionerRole, adjust as needed
+        elif item['resourceType'] == 'PractitionerRole':
+            referrer = {
+                'id': item['id'],
+                'medicare_provider_number': next((identifier['value'] for identifier in item['identifier'] if identifier.get('type', {}).get('coding', [{}])[0].get('code') == 'UPIN'), None),
+                'organization_reference': item['organization']['reference'],
+                'practitioner_reference': item['practitioner']['reference']
+            }
 
+    return {
+        'patient': patient,
+        'practitioner': practitioner,
+        'practice': practice,
+        'referrer': referrer
+    }
 
-# Assuming `data` is the payload from the earlier provided `generate_referral()` function
-# If reading from a file, use the commented lines below instead to load your JSON data
-file_path = 'data\sample1.json'
-with open(file_path, 'r') as f:
-    data = json.load(f)
+# Extract entities
+entities = extract_entities(data)
 
-# Extract patient info from the referral data
-patient_info = extract_patient_info(data)
-
-# Writing to CSV
-csv_file_path = 'output.csv'
-with open(csv_file_path, 'w', newline='', encoding='utf-8') as f:
-    writer = csv.DictWriter(f, fieldnames=patient_info.keys())
-    writer.writeheader()
-    writer.writerow(patient_info)
-
-print("Data has been written to CSV file successfully.")
+# Example of printing the structured data
+print("Patient:", entities['patient'])
+print("Practitioner:", entities['practitioner'])
+print("Practice:", entities['practice'])
+print("Referrer:", entities['referrer'])
