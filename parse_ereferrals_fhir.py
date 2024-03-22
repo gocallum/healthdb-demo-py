@@ -1,5 +1,13 @@
 import json
 
+
+def extract_email(telecom_list):
+    for telecom in telecom_list:
+        if telecom['system'] == 'email':
+            return telecom['value']
+    return None  # Returns None if no email is found
+
+
 # Assuming `data` is your JSON structure loaded from the sample provided or a similar source
 # If you need to load from a file: 
 
@@ -18,7 +26,31 @@ def extract_entities(data):
                 'first_name': ' '.join(item['name'][0]['given']),
                 'last_name': item['name'][0]['family'],
                 'medicare_number': next((identifier['value'] for identifier in item['identifier'] if identifier.get('type', {}).get('coding', [{}])[0].get('code') == 'MC'), None),
-                'gender': item['gender']
+                'gender': item['gender'],
+                # get patient id 
+                'id': item['id'],
+                # get patient address line 1
+                'address_line_1': item['address'][0]['line'][0],
+                # get patient city 
+                'city': item['address'][0]['city'],
+                # get patient postcode
+                'postcode': item['address'][0]['postalCode'],
+                # get patient state 
+                'state': item['address'][0]['state'],
+                # get patient date of birth
+                'dob': item['birthDate'],
+                # get patient phone number
+                'phone_mobile': item['telecom'][0]['value'],
+                'phone_home': item['telecom'][1]['value'],
+                'email': extract_email(item.get('telecom', [])),
+                'dva_number': next((identifier['value'] for identifier in item['identifier'] if identifier.get('type', {}).get('coding', [{}])[0].get('code') == 'DVAU'), None),
+                # get the patient's medicare expiry date
+                #'medicare_expiry': item['extension'][0]['valueDate'],
+                #get the patient's carer information 
+                'carer_name': item['contact'][0]['name']['family'] + ' ' + ' '.join(item['contact'][0]['name']['given']),
+                'carer_phone': item['contact'][0]['telecom'][0]['value'],
+                'carer_email': extract_email(item['contact'][0]['telecom']),
+                'carer_relationship': item['contact'][0]['relationship'][0]['coding'][0]['display'],
             }
         elif item['resourceType'] == 'Practitioner':
             practitioner = {

@@ -1,6 +1,7 @@
 import random
 from faker import Faker
-fake = Faker()
+# Set Faker to use the Australian locale for more localized data
+fake = Faker('en_AU')
 from lib.common_health import generate_australian_gp_name
 import json
 
@@ -278,7 +279,7 @@ def generate_referral():
                             f"{fake.street_address()}",
                         ],
                         "city": fake.city(),
-                        "city": fake.city(),
+                        "state": fake.state_abbr(),
                         "postalCode": fake.postcode(),
                         "country": "AUS"
                     },
