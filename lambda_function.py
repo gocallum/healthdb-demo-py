@@ -1,5 +1,6 @@
 # lambda_function.py
 import json
+from fhir_response import send_error_response, send_success_response
 from parse_ereferrals_fhir import extract_entities
 from persist_entities_db import db_save_entities
 
@@ -9,18 +10,22 @@ def lambda_handler(event, context):
         entities = extract_entities(fhir_payload)
         db_save_entities(entities)
         print("Entities saved to the database.")
-        
+
+        # compose the response
+        diagnostics = 'Entities saved to the database.'
+ 
+    
         return {
-            'statusCode': 200,
+            'statusCode': 202,
             'headers': {
                 'Content-Type': 'application/json'
             },
-            'body': json.dumps(entities)
+            'body': send_success_response(diagnostics)
         }
     except Exception as e:
         return {
             'statusCode': 500,
-            'body': json.dumps({'error': str(e)})
+            'body': send_error_response(str(e))
         }
 
 if __name__ == "__main__":

@@ -73,6 +73,9 @@ def db_save_entities(entities):
         cur.close()
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
+        #raise the exception back to the caller 
+        raise error
+
     finally:
         if conn is not None and conn.closed == 0:
             conn.close()

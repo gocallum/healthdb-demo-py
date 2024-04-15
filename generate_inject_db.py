@@ -6,6 +6,8 @@ import os
 from lib.common_health import generate_australian_gp_name, get_target_organisation_name
 from lib.common_health import generate_healthcare_concern
 from lib.common_health import generate_comorbidity
+from pandas.tseries.offsets import BDay
+
 
 from dotenv import load_dotenv
 
@@ -22,18 +24,53 @@ POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
 fake = Faker('en_AU')
 
 
+def choose_state():
+    # weights for NSW, VIC, QLD respectively
+    return random.choices(['NSW', 'VIC', 'QLD'], weights=[0.5, 0.35, 0.15], k=1)[0]
+
+# Function to generate a business date based on a start date
+
+def generate_business_date(start_date):
+    if random.random() < 0.70:  # 70% within 1 business day
+        days = 1
+    elif random.random() < 0.95:  # 25% within 2 business days
+        days = 2
+    else:  # 5% within 3-4 business days
+        days = random.choice([3, 4])
+    return start_date + BDay(days)
+
+# Function to choose a status for the referral
+# 0 is pending, 1 is accepted, 2 is rejected
+def choose_status():
+    return random.choices([1, 2, 0], weights=[0.80, 0.15, 0.05], k=1)[0]
+
+def parse_address(address):
+    """
+    Parses the given address string to extract the state and postcode.
+    Assumes the format "Street Address, State, Postcode".
+    """
+    parts = address.split(',')
+    if len(parts) >= 3:
+        state = parts[-2].strip()
+        postcode = parts[-1].strip()
+        return state, postcode
+    return None, None
+
+
+
 
 def generate_ereferral_data():
     # Randomly choose an Australian state for consistency in GP name and patient address
-    states = ['NSW', 'VIC', 'QLD']
-    chosen_state = random.choice(states)
+    # states = ['NSW', 'VIC', 'QLD']
+    chosen_state = choose_state()
     referral_date = fake.date_time_this_decade(before_now=True, after_now=False, tzinfo=None)
 
-    referral_status = random.choice([0, 1, 2])  # Randomly selects a status
+    referral_status = choose_status()
     if referral_status == 0:
         referral_accepted_rejected_date = None
     else:
-        referral_accepted_rejected_date = fake.date_time_between(start_date=referral_date, end_date='now')
+        # Ensure the date_time_between includes only business days within the specified range
+        referral_accepted_rejected_date = generate_business_date(referral_date)
 
     # Predefined list of healthcare facilities, including an empty string for blank cases
     healthcare_facilities = [
@@ -54,7 +91,7 @@ def generate_ereferral_data():
         'clinician_name': fake.name(),
         'clinician_contact_details': fake.phone_number(),
         'healthcare_provider_number': fake.bothify(text='????#####', letters='ABCDEFGHIJKLMNOPQRSTUVWXYZ'),
-        'practice_name': generate_australian_gp_name(chosen_state),
+        'practice_name': generate_australian_gp_name(),
         'practice_contact_details': fake.phone_number(),
         'secure_messaging_provider': random.choice(['HealthLink', 'Argus', 'ReferralNet', 'Medical Objects']),
         'secure_messaging_endpoint': fake.bothify(text='########'), # Generates an 8-digit alphanumeric code
@@ -127,7 +164,7 @@ def insert_ereferral_record(record):
         connection = connect_to_database()
         cursor = connection.cursor()
         # Print the SQL command for manual inspection or use
-        print(f"Executed SQL:\n{cursor.mogrify(insert_sql, values).decode('utf-8')}")
+        # print(f"Executed SQL:\n{cursor.mogrify(insert_sql, values).decode('utf-8')}")
         
         # Execute the insertion
         cursor.execute(insert_sql, values)
