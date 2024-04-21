@@ -14,19 +14,29 @@ def lambda_handler(event, context):
         # compose the response
         diagnostics = 'Entities saved to the database.'
  
-    
+        print ("sending 202 response")
+        body = send_success_response(diagnostics)
+        print (body)
+
         return {
             'statusCode': 202,
             'headers': {
                 'Content-Type': 'application/json'
             },
-            'body': send_success_response(diagnostics)
+
+            'body': json.dumps({"message": body})
+            
         }
     except Exception as e:
+        body = send_error_response(str(e))
+        print(body)
+        
         return {
             'statusCode': 500,
-            'body': send_error_response(str(e))
+            'body': json.dumps({"error": body})
         }
+
+
 
 if __name__ == "__main__":
     file_path = 'data\\event1.json'
