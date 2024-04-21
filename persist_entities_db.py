@@ -1,12 +1,12 @@
 import json
 import os
 from parse_ereferrals_fhir import extract_entities
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 import psycopg2
 
 
 # Load environment variables from .env file
-load_dotenv()
+#load_dotenv()
 
 # Database credentials from the .env file
 POSTGRES_HOST = os.getenv("POSTGRES_HOST")
